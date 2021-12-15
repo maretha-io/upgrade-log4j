@@ -1,0 +1,113 @@
+<project name="upgrade-log4j-package" default="build" xmlns:nx="urn:nuxeo-build" xmlns:artifact="urn:nuxeo-artifact">
+	 <taskdef resource="org/nuxeo/build/antlib.xml" uri="urn:nuxeo-build"/>
+	  <taskdef resource="org/nuxeo/build/artifact/antlib.xml" uri="urn:nuxeo-artifact"/>
+	  <taskdef resource="net/sf/antcontrib/antlib.xml"/>
+
+	  <target name="build" description="Build Nuxeo Package">
+	    <property name="outdir" value="${maven.project.build.directory}"/>
+	    <artifact:print output="${outdir}/dependency-tree.log"/>
+	    <tstamp/>
+
+	    <delete failonerror="false" dir="${outdir}/nxr"/>
+	    <mkdir dir="${outdir}/nxr"/>
+	    <delete failonerror="false" dir="${outdir}/marketplace"/>
+	    <mkdir dir="${outdir}/marketplace"/>
+	    <copy todir="${outdir}/marketplace">
+	      <fileset dir="src/main/resources"/>
+	      <filterset>
+	        <filter token="VERSION" value="${maven.project.version}"/>
+	        <filter token="DISTRIB_VERSION" value="${nuxeo.distribution.version}"/>
+	      </filterset>
+	    </copy>
+	    <!-- Base distribution NXR -->
+	    <copy todir="${outdir}">
+	      <artifact:file key="org.nuxeo.ecm.distribution:nuxeo-nxr-server::zip" />
+	    </copy>
+
+	    <!-- Nuxeo bundles -->
+	    <copy todir="${outdir}/nxr/bundles" overwrite="true">
+	      <artifact:set>
+	        <includes>
+	          <artifact groupId="org.nuxeo*" />
+	          <artifact groupId="nuxeo-studio" />
+	          <!-- Include your artifacts using their groupId for instance -->
+	          <artifact groupId="maretha.io*" />
+	        </includes>
+	        <excludes>
+	          <artifact groupId="${maven.project.groupId}" artifactId="${maven.project.artifactId}" version="${maven.project.version}" type="${maven.project.packaging}"/>
+	          <artifact scope="test"/>
+	          <artifact scope="provided"/>
+	          <artifact type="pom"/>
+	          <artifact groupId="org.nuxeo.lib*"/>
+	        </excludes>
+	      </artifact:set>
+	    </copy>
+	    <!-- Third-party libraries -->
+	    <copy todir="${outdir}/nxr/lib" overwrite="true">
+	      <artifact:set>
+	        <includes>
+	          <artifact groupId="!org.nuxeo*" />
+	          <artifact groupId="!org.apache.logging*" />
+	        </includes>
+	        <excludes>
+	          <artifact scope="test" />
+	          <artifact scope="provided" />
+	          <artifact type="pom" />
+	          <artifact groupId="nuxeo-studio" />
+	          <!-- Filter out your artifacts using their groupId for instance -->
+	          <artifact groupId="maretha.io*"/>
+	          <artifact groupId="org.apache.logging*"/>
+	        </excludes>
+	      </artifact:set>
+	    </copy>
+	    
+	    <copy todir="${outdir}/marketplace/install/syslib">
+	      <artifact:set excludeRoots="true">
+	        <includes>
+	          <artifact groupId="org.apache.logging.log4j" scope="" type="!pom" />
+	        </includes>
+	      </artifact:set>
+	    </copy>
+	    
+	    <nx:rmdups dir="${outdir}/nxr/lib"/>
+	    <!-- Temporary ZIP Nuxeo NXR to compare with base distribution NXR -->
+	    <zip destfile="${outdir}/nxr-${maven.project.version}.zip" basedir="${outdir}/nxr"/>
+
+	    <!-- Your MP only needs to include files not already provided by the base distribution -->
+	    <nx:zipdiff
+	      file1="${outdir}/nxr-${maven.project.version}.zip"
+	      file2="${outdir}/nuxeo-nxr-server-${nuxeo.distribution.version}.zip"
+	      includesfile="${outdir}/includes"
+	      excludesfile="${outdir}/excludesfile"
+	      patternsetid="nxr.versus.distribution"
+	      ignoreContent="false"
+	      ignoreContentPattern=".*\.jar$"></nx:zipdiff>
+	    <unzip src="${outdir}/nxr-${maven.project.version}.zip" dest="${outdir}/marketplace/install">
+	      <patternset refid="nxr.versus.distribution"/>
+	    </unzip>
+
+
+
+	    <var name="install.syslibs" value=""/>
+	    <if>
+	      <available file="${outdir}/marketplace/install/syslib"/>
+	      <then>
+
+	        <var name="install.syslibs" value="${line.separator}
+	  &lt;update file=&quot;${package.root}/install/syslib&quot; todir=&quot;${env.syslib}&quot; /&gt;"/>
+	      </then>
+	    </if>
+
+
+
+	    <copy file="src/main/resources/install.xml" todir="${outdir}/marketplace" overwrite="true">
+	      <filterset>
+	        <filter token="SYSLIBS" value="${install.syslibs}"/>
+	      </filterset>
+	    </copy>
+
+	    <zip destfile="${outdir}/${maven.project.artifactId}-${maven.project.version}.zip" basedir="${outdir}/marketplace"/>
+	    <artifact:attach file="${outdir}/${maven.project.artifactId}-${maven.project.version}.zip" type="zip"/>
+	  </target>
+
+</project>
