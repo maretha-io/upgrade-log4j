@@ -1,6 +1,6 @@
-# upgrade-log4j to 2.0.16 on your Nuxeo server
+# upgrade-log4j to 2.17.0 on your Nuxeo server
 This marketplace package can be installed on Nuxeo 10.10 or LTS2021 (just relax the constraint).
-It brings nothing else, just replaces the existing log4j jars in your $Nuxeo/lib with the ones in 2.0.16
+It brings nothing else, just replaces the existing log4j jars in your $Nuxeo/lib with the ones in 2.17.0
 
 To build:
 ```
